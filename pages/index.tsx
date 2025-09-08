@@ -4,12 +4,30 @@ import React, { useState, useMemo } from 'react';
 import ResultsPanel from '../components/ResultsPanel';
 import { computeATSSCore } from '../utils/atsScore';
 
+interface InterviewQuestion {
+  question: string;
+  why_asked: string;
+  model_answer: string;
+}
+
+interface TailorResult {
+  ok: boolean;
+  parsed?: {
+    tailored_resume?: string;
+    cover_letter?: string;
+    ats_score?: number;
+    interview_questions?: InterviewQuestion[];
+    missing_keywords?: string[];
+  };
+  raw?: string;
+}
+
 const MAX_INPUT_LENGTH = 5000;
 
 const HomePage: React.FC = () => {
   const [resumeText, setResumeText] = useState('');
   const [jobDesc, setJobDesc] = useState('');
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<TailorResult | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Compute client-side ATS
@@ -39,7 +57,7 @@ const HomePage: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resume: resumeText, job_description: jobDesc }),
       });
-      const data = await res.json();
+      const data: TailorResult = await res.json();
       setResult(data);
     } catch (err) {
       console.error(err);
@@ -49,14 +67,16 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const handleTextChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (e.target.value.length > MAX_INPUT_LENGTH) {
-      alert(`Input too long! Please keep it under ${MAX_INPUT_LENGTH} characters.`);
-      setter(e.target.value.slice(0, MAX_INPUT_LENGTH));
-    } else {
-      setter(e.target.value);
-    }
-  };
+  const handleTextChange =
+    (setter: React.Dispatch<React.SetStateAction<string>>) =>
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      if (e.target.value.length > MAX_INPUT_LENGTH) {
+        alert(`Input too long! Please keep it under ${MAX_INPUT_LENGTH} characters.`);
+        setter(e.target.value.slice(0, MAX_INPUT_LENGTH));
+      } else {
+        setter(e.target.value);
+      }
+    };
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -90,7 +110,8 @@ const HomePage: React.FC = () => {
         {resumeText && jobDesc && (
           <div className="my-2">
             <p className="text-sm text-gray-600">
-              Client-side ATS preview: {ats.score}/100 ({ats.matched.length}/{ats.total} JD keywords matched)
+              Client-side ATS preview: {ats.score}/100 ({ats.matched.length}/{ats.total} JD keywords
+              matched)
             </p>
             <div className="w-full bg-gray-200 h-2 rounded">
               <div className="h-2 rounded bg-blue-500" style={{ width: `${ats.score}%` }}></div>
